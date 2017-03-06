@@ -1,0 +1,28 @@
+jar.doFirst {
+    manifest {
+        def manifestFile = "${projectDir}/META-INF/MANIFEST.MF"
+        if ( new File( manifestFile ).exists() )
+            from ( manifestFile )
+        def requiredProjects = ''
+        configurations.compile.getAllDependencies().withType(ProjectDependency).each {dep->
+            def dependantProjects = dep.getDependencyProject()
+            def projects = project(dependantProjects.path).libsDir.list().findAll{it.endsWith('.jar')}
+            projects.removeAll(projects.findAll{it.endsWith('test.jar')})
+            def requiredProject = projects.join(' ')
+            requiredProjects +=  requiredProject.replaceAll(/ /,'%20') + ' '
+            logger.info 'Required Project: ' + requiredProject
+        }
+        logger.info 'Required requiredProjects: ' + requiredProjects
+
+        def compileFiles = configurations.compile.files{ it instanceof ExternalDependency }.collect  {
+            File file = it
+            "lib/${file.name}"
+        }.join(' ')
+
+        def manifestPath = requiredProjects + compileFiles
+        logger.info 'Manifest: '+ manifestPath
+        attributes 'Class-Path': manifestPath
+        attributes 'Build-date': new Date();
+        attributes 'Application-Version': project.version
+    }
+}
